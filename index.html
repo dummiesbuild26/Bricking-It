@@ -264,6 +264,15 @@ canvas{display:block;}
 #danger-dot.on{opacity:1;}
 @keyframes ddot{from{transform:scale(1)}to{transform:scale(1.7)}}
 
+/* ─── GYRO INDICATOR ─── */
+#gyro-badge{
+  position:absolute;bottom:calc(var(--sb) + var(--ctrl-h) + 8px);left:50%;transform:translateX(-50%);
+  font-size:8px;font-weight:800;color:rgba(0,212,255,.7);letter-spacing:2px;text-transform:uppercase;
+  background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.22);border-radius:20px;
+  padding:5px 12px;pointer-events:none;z-index:12;opacity:0;transition:opacity .4s;white-space:nowrap;}
+#gyro-badge.on{opacity:1;}
+#gyro-badge.hidden{display:none;}
+
 /* ─── PAUSE ─── */
 #s-pause{z-index:50;}
 .pov{width:100%;height:100%;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;
@@ -443,6 +452,12 @@ canvas{display:block;}
       <div class="srow"><span class="slbl">&#128243; SCREEN SHAKE</span><button class="tgl" id="tgl-shk" data-on="true">ON</button></div>
       <div class="srow"><span class="slbl">&#128241; VIBRATION</span><button class="tgl" id="tgl-vib" data-on="true">ON</button></div>
       <div class="srow"><span class="slbl">&#10024; LOW FX MODE</span><button class="tgl" id="tgl-lfx" data-on="false">OFF</button></div>
+      <div class="srow" id="srow-ctrl" style="display:none"><span class="slbl">🕹️ CONTROLS</span>
+        <div style="display:flex;gap:6px;">
+          <button class="tgl" id="tgl-ctrl-btn" data-on="false">BUTTONS</button>
+          <button class="tgl" id="tgl-ctrl-gyro" data-on="false">GYRO</button>
+        </div>
+      </div>
       <div class="sdiv"></div>
       <button class="dbtn" id="btn-reset">&#128465; RESET ALL DATA</button>
       <div class="rcc hidden" id="rcc">
@@ -504,6 +519,7 @@ canvas{display:block;}
       <span class="ctrl-lbl">RIGHT</span>
     </button>
   </div>
+  <div id="gyro-badge">📱 TILT TO MOVE</div>
 </div>
 
 <!-- PAUSE -->
@@ -604,7 +620,7 @@ const CFG={
 };
 const SAV=(()=>{
   const KEY='biv3f',DEF={best:0,longest:0,games:0,dodged:0,near:0,maxCombo:0,
-    skins:['classic'],skin:'classic',snd:true,shk:true,vib:true,lfx:false,ach:[]};
+    skins:['classic'],skin:'classic',snd:true,shk:true,vib:true,lfx:false,ctrl:'gyro',ach:[]};
   let d={...DEF};
   try{const r=localStorage.getItem(KEY);if(r)d={...DEF,...JSON.parse(r)};}catch(e){}
   const sv=()=>{try{localStorage.setItem(KEY,JSON.stringify(d));}catch(e){}};
@@ -660,11 +676,11 @@ const AUD=(()=>{
     combo:(n)=>tone(220+n*130,'square',.055,.2),
     stageTrans:()=>{sweep(200,400,.15,.18);setTimeout(()=>sweep(400,200,.15,.18),160);},}
 })();
-const INP={l:false,r:false,_pids:{},
+const INP={l:false,r:false,_pids:{},gyroActive:false,_gyroTilt:0,_gyroBase:null,_gyroRequested:false,_ctrlMode:'gyro',
   init(){
     const bl=document.getElementById('btn-left'),br=document.getElementById('btn-right');
-    const setL=v=>{this.l=v;bl.classList.toggle('held',v);};
-    const setR=v=>{this.r=v;br.classList.toggle('held',v);};
+    const setL=v=>{this.l=v;if(!this.gyroActive)bl.classList.toggle('held',v);};
+    const setR=v=>{this.r=v;if(!this.gyroActive)br.classList.toggle('held',v);};
     const dn=(side,ev)=>{ev.preventDefault();AUD.init();this._pids[ev.pointerId]=side;side==='l'?setL(true):setR(true);};
     const up=ev=>{ev.preventDefault();const s=this._pids[ev.pointerId];delete this._pids[ev.pointerId];if(s==='l')setL(false);else if(s==='r')setR(false);};
     [bl,br].forEach((btn,i)=>{const s=i===0?'l':'r';
@@ -677,7 +693,64 @@ const INP={l:false,r:false,_pids:{},
     document.addEventListener('keyup',ev=>{const s=km[ev.key];if(s)s==='l'?setL(false):setR(false);});
     const rst=()=>{setL(false);setR(false);this._pids={};};
     document.addEventListener('visibilitychange',()=>{if(document.hidden)rst();});
-    window.addEventListener('blur',rst);},
+    window.addEventListener('blur',rst);
+    // Gyro init — mobile only
+    if(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)&&window.DeviceOrientationEvent){
+      this._initGyro();}},
+  _initGyro(){
+    const badge=document.getElementById('gyro-badge');
+    const bl=document.getElementById('btn-left'),br=document.getElementById('btn-right');
+    const ctrl=document.getElementById('ctrl-bar');
+    const _showButtons=()=>{
+      bl.style.transition='opacity .3s';br.style.transition='opacity .3s';
+      bl.style.opacity='1';bl.style.pointerEvents='all';
+      br.style.opacity='1';br.style.pointerEvents='all';
+      if(badge)badge.classList.add('hidden');};
+    const _hideButtons=()=>{
+      bl.style.transition='opacity .3s';br.style.transition='opacity .3s';
+      bl.style.opacity='0';bl.style.pointerEvents='none';
+      br.style.opacity='0';br.style.pointerEvents='none';};
+    this._showButtons=_showButtons;this._hideButtons=_hideButtons;
+    const _activate=()=>{
+      if(this.gyroActive||this._ctrlMode==='buttons')return;
+      this.gyroActive=true;
+      _hideButtons();
+      if(badge){badge.classList.remove('hidden');badge.classList.add('on');}
+      setTimeout(()=>{if(badge)badge.classList.remove('on');},2200);};
+    const _handleOrientation=(ev)=>{
+      if(this._ctrlMode==='buttons'){this.l=false;this.r=false;return;}
+      const gamma=ev.gamma||0;
+      if(this._gyroBase===null)this._gyroBase=gamma;
+      const tilt=gamma-this._gyroBase;
+      this._gyroTilt=tilt;
+      const dead=3;
+      if(Math.abs(tilt)>dead){_activate();}
+      this.l=tilt<-dead;
+      this.r=tilt>dead;};
+    // iOS 13+ requires permission
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      // Attach to first user gesture on splash/menu
+      const ask=()=>{
+        DeviceOrientationEvent.requestPermission().then(state=>{
+          if(state==='granted'){window.addEventListener('deviceorientation',_handleOrientation);}
+        }).catch(()=>{});
+        document.removeEventListener('pointerdown',ask);};
+      document.addEventListener('pointerdown',ask,{once:true});
+    } else {
+      window.addEventListener('deviceorientation',_handleOrientation);}},
+  recalibrateGyro(){this._gyroBase=null;},
+  setCtrlMode(mode){
+    this._ctrlMode=mode;
+    if(mode==='buttons'){
+      // switching to buttons — restore them, kill gyro state
+      this.gyroActive=false;
+      if(this._showButtons)this._showButtons();
+    } else {
+      // switching to gyro — hide buttons, recalibrate
+      this._gyroBase=null;
+      this.gyroActive=false; // will re-activate on first tilt
+      if(this._hideButtons)this._hideButtons();
+    }},
   reset(){this.l=false;this.r=false;this._pids={};}};
 const SHAKE={x:0,y:0,trauma:0,
   add(v){this.trauma=Math.min(1,this.trauma+v);},
@@ -1388,7 +1461,21 @@ function initSettings(){
   const pairs=[['tgl-snd','snd'],['tgl-shk','shk'],['tgl-vib','vib'],['tgl-lfx','lfx']];
   for(const [id,key] of pairs){const btn=document.getElementById(id);
     const set=v=>{SAV.s(key,v);btn.setAttribute('data-on',v?'true':'false');btn.textContent=v?'ON':'OFF';if(key==='snd')AUD.setOn(v);};
-    set(SAV.g(key));btn.addEventListener('click',()=>{set(!SAV.g(key));AUD.click();});}}
+    set(SAV.g(key));btn.addEventListener('click',()=>{set(!SAV.g(key));AUD.click();});}
+  // Controls toggle — only show on mobile with gyro support
+  const ctrlRow=document.getElementById('srow-ctrl');
+  const tglBtn=document.getElementById('tgl-ctrl-btn');
+  const tglGyro=document.getElementById('tgl-ctrl-gyro');
+  const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  const hasGyro=isMobile&&window.DeviceOrientationEvent;
+  if(hasGyro&&ctrlRow){ctrlRow.style.display='flex';}
+  const setCtrl=v=>{SAV.s('ctrl',v);
+    tglBtn.setAttribute('data-on',v==='buttons'?'true':'false');
+    tglGyro.setAttribute('data-on',v==='gyro'?'true':'false');
+    INP.setCtrlMode(v);};
+  if(tglBtn)tglBtn.addEventListener('click',()=>{AUD.click();setCtrl('buttons');});
+  if(tglGyro)tglGyro.addEventListener('click',()=>{AUD.click();setCtrl('gyro');});
+  setCtrl(SAV.g('ctrl')||'gyro');}
 function syncPauseSnd(){const btn=document.getElementById('tgl-p-snd');btn.textContent=(SAV.g('snd')?'🔊':'🔇')+' SOUND: '+(SAV.g('snd')?'ON':'OFF');btn.setAttribute('data-on',SAV.g('snd')?'true':'false');}
 function updateStats(){document.getElementById('st-best').textContent=SAV.g('best');document.getElementById('st-long').textContent=SAV.g('longest')+'s';document.getElementById('st-games').textContent=SAV.g('games');document.getElementById('st-dod').textContent=SAV.g('dodged');document.getElementById('st-near').textContent=SAV.g('near');document.getElementById('st-skins').textContent=SAV.g('skins').length+'/'+CFG.SKINS.length;}
 let achTO=null;
@@ -1408,6 +1495,8 @@ function startGame(){
   G={score:0,time:0,dodged:0,nmCount:0,maxCombo:0,combo:0,comboT:0,mult:1,stg:0,
     bricks:[],px:[],pus:[],stars:[],cracks:[],ap:{},player:null,running:false,lastT:0,lastSpawn:0,patQ:[],puT:0};
   SHAKE.trauma=0;SHAKE.x=0;SHAKE.y=0;
+  INP.recalibrateGyro();
+  INP.setCtrlMode(SAV.g('ctrl')||'gyro');
   G.player=Object.assign({x:W*.5,y:pFloorY(),vx:0,facing:1,state:'idle',idleT:0,runT:0,panicT:0,shieldFlash:0,dustT:0,deathVX:0,deathVY:0,dead:false,deathT:0});
   G.running=true;G.lastSpawn=performance.now();INP.reset();
   document.getElementById('h-score').textContent='0';document.getElementById('h-best').textContent=SAV.g('best');
