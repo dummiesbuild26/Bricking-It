@@ -29,6 +29,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
 canvas{display:block;}
 #app{position:fixed;inset:0;overflow:hidden;}
 .scr{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;overflow:hidden;}
+.scr.ov{overflow:visible;}
 .scr.on{display:flex;}
 
 /* ─── SPLASH ─── */
@@ -107,11 +108,11 @@ canvas{display:block;}
 .ov-title{font-size:clamp(14px,3.8vw,20px);font-weight:900;color:var(--c2);
   text-align:center;margin-bottom:24px;letter-spacing:4px;
   text-shadow:0 0 20px rgba(255,210,0,.4),2px 2px 0 #6a4800;text-transform:uppercase;}
-.bk-btn{position:fixed;top:calc(var(--st)+12px);right:16px;font-size:15px;font-weight:700;
+.bk-btn{position:absolute;top:calc(var(--st)+12px);right:max(16px,env(safe-area-inset-right,0px)+12px);font-size:15px;font-weight:700;
   color:rgba(255,255,255,.85);
   background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.05));
   border:1px solid rgba(255,255,255,.18);
-  border-radius:50%;width:44px;height:44px;cursor:pointer;z-index:200;
+  border-radius:50%;width:52px;height:52px;cursor:pointer;z-index:200;
   display:flex;align-items:center;justify-content:center;transition:all .12s;
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   box-shadow:0 2px 12px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.1);}
@@ -426,7 +427,7 @@ canvas{display:block;}
 </div>
 
 <!-- HOW TO PLAY -->
-<div id="s-howto" class="scr">
+<div id="s-howto" class="scr ov">
   <div class="ov-wrap">
     <button class="bk-btn" id="btn-ht-bk">&#10005;</button>
     <div class="ov-title">HOW TO PLAY</div>
@@ -443,7 +444,7 @@ canvas{display:block;}
 </div>
 
 <!-- SETTINGS -->
-<div id="s-settings" class="scr">
+<div id="s-settings" class="scr ov">
   <div class="ov-wrap">
     <button class="bk-btn" id="btn-st-bk">&#10005;</button>
     <div class="ov-title">SETTINGS</div>
@@ -469,7 +470,7 @@ canvas{display:block;}
 </div>
 
 <!-- STATS -->
-<div id="s-stats" class="scr">
+<div id="s-stats" class="scr ov">
   <div class="ov-wrap">
     <button class="bk-btn" id="btn-sc-bk">&#10005;</button>
     <div class="ov-title">STATS</div>
@@ -485,7 +486,7 @@ canvas{display:block;}
 </div>
 
 <!-- SKINS -->
-<div id="s-skins" class="scr">
+<div id="s-skins" class="scr ov">
   <div class="ov-wrap">
     <button class="bk-btn" id="btn-sk-bk">&#10005;</button>
     <div class="ov-title">SKINS</div>
@@ -1466,9 +1467,9 @@ function initSettings(){
   const ctrlRow=document.getElementById('srow-ctrl');
   const tglBtn=document.getElementById('tgl-ctrl-btn');
   const tglGyro=document.getElementById('tgl-ctrl-gyro');
-  const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-  const hasGyro=isMobile&&window.DeviceOrientationEvent;
-  if(hasGyro&&ctrlRow){ctrlRow.style.display='flex';}
+  // Show controls row on mobile OR if gyro API available
+  const isMobile=('ontouchstart' in window)||(/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
+  if(isMobile&&ctrlRow){ctrlRow.style.display='flex';}
   const setCtrl=v=>{SAV.s('ctrl',v);
     tglBtn.setAttribute('data-on',v==='buttons'?'true':'false');
     tglGyro.setAttribute('data-on',v==='gyro'?'true':'false');
