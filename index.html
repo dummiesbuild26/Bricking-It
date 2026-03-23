@@ -33,6 +33,7 @@ canvas{display:block;}
 
 /* ─── SPLASH ─── */
 #s-splash{justify-content:center;align-items:center;}
+#splash-bg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:block;}
 #splash-bg{position:absolute;inset:0;pointer-events:none;}
 .spl-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
   gap:0;padding:28px 24px;width:min(100%,410px);padding-top:max(var(--st),28px);}
@@ -1356,7 +1357,7 @@ function renderBrickSamples(){
     card.appendChild(cv);const lbl=document.createElement('span');lbl.textContent=s.lbl;card.appendChild(lbl);grid.appendChild(card);}}
 function startSplashAnim(){
   const cv=document.getElementById('splash-bg');const mc=cv.getContext('2d');
-  cv.width=cv.offsetWidth;cv.height=cv.offsetHeight;
+  cv.width=window.innerWidth;cv.height=window.innerHeight;
   const bricks=[];let lastSp=0,sraf;
   // Draw premium splash background
   function drawSplashBG(){
@@ -1369,7 +1370,10 @@ function startSplashAnim(){
     mc.strokeStyle='rgba(176,96,255,.04)';mc.lineWidth=1;
     for(let gx=0;gx<cv.width;gx+=40){mc.beginPath();mc.moveTo(gx,0);mc.lineTo(gx,cv.height);mc.stroke();}
     for(let gy=0;gy<cv.height;gy+=40){mc.beginPath();mc.moveTo(0,gy);mc.lineTo(cv.width,gy);mc.stroke();}}
+  const onResize=()=>{cv.width=window.innerWidth;cv.height=window.innerHeight;};
+  window.addEventListener('resize',onResize);
   const sloop=(now)=>{sraf=requestAnimationFrame(sloop);
+    if(!document.getElementById('s-splash').classList.contains('on')){cancelAnimationFrame(sraf);window.removeEventListener('resize',onResize);return;}
     if(!document.getElementById('s-splash').classList.contains('on')){cancelAnimationFrame(sraf);return;}
     drawSplashBG();
     if(now-lastSp>380&&bricks.length<20){lastSp=now;const types=Object.keys(BP);const t=types[Math.floor(Math.random()*types.length)];
